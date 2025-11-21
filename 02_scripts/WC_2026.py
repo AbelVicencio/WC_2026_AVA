@@ -1,21 +1,21 @@
 import pandas as pd
 import numpy as np
 
+
 #Importamos lista de selecciones clasificadas y dejamos slots para las de repechaje
 
-df_clasificados = pd.read_excel('01_datos_brutos/WC_2026/Clasificados_WC_26.xlsx', 
+df_clasificados = pd.read_excel('01_datos_brutos/Clasificados_WC_26.xlsx', 
                                 sheet_name='Clasificados')
 
-df_repechaje_uefa = pd.read_excel('01_datos_brutos/WC_2026/Clasificados_WC_26.xlsx', 
+df_repechaje_uefa = pd.read_excel('01_datos_brutos/Clasificados_WC_26.xlsx', 
                                 sheet_name='Repechaje_UEFA')
 
-df_repechaje_fifa = pd.read_excel('01_datos_brutos/WC_2026/Clasificados_WC_26.xlsx', 
+df_repechaje_fifa = pd.read_excel('01_datos_brutos/Clasificados_WC_26.xlsx', 
                                 sheet_name='Repechaje_FIFA')
 
 #Cargamos Power Ranking FIFA
 
-df_power_ranking = pd.read_csv('01_datos_brutos/WC_2026/FIFA_PR_19_11_2025.csv').drop(columns=['Unnamed: 7'])
-
+df_power_ranking = pd.read_csv('01_datos_brutos/FIFA_PR_19_11_2025.csv').drop(columns=['Unnamed: 7'])
 
 #Generamos los repechajes
 
@@ -119,10 +119,7 @@ def asignar_bombos(df_clasificados,
     return df_final, bombo1, bombo2, bombo3, bombo4
 
 
-df_bombos, bombo1, bombo2, bombo3, bombo4 = asignar_bombos(df_clasificados,
-                                                           random_state=42)
+
+df_bombos, bombo1, bombo2, bombo3, bombo4 = asignar_bombos(df_clasificados, df_power_ranking, random_state=42)
 
 print(df_bombos)
-
-
-#CAMBIO LAP
