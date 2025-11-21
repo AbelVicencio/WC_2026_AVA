@@ -117,9 +117,3 @@ def asignar_bombos(df_clasificados,
 
 
     return df_final, bombo1, bombo2, bombo3, bombo4
-
-
-
-df_bombos, bombo1, bombo2, bombo3, bombo4 = asignar_bombos(df_clasificados, df_power_ranking, random_state=42)
-
-print(df_bombos)

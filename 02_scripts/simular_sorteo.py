@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import random
+import string
 
 from WC_2026 import asignar_bombos, generar_repechaje_uefa, generar_repechaje_fifa
 
@@ -60,6 +61,3 @@ def generar_sorteo_bombo1(bombo1, random_state = None):
     return df_cabezas
 
 
-resultado_cabezas_step = generar_sorteo_bombo1(bombo1, random_state=41)
-print("\nResultado final Bombo 1:")
-print(resultado_cabezas_step)
