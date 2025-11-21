@@ -29,11 +29,15 @@ bombos_slots = {}
 for grupo in grupos:
     bombos_slots[grupo] = [f"{grupo}{i}" for i in range(2, 5)]
 
-# Creamos un diccionario para guardar la asignación final
-asignaciones_bombo2 = {}
 
-# Convertimos bombo2['codigo'] en lista de países
-paises_bombo2 = bombo2['codigo'].tolist()
+
+
+
+
+
+
+
+
 
 # Iteramos sobre los grupos A-L en orden
 for grupo in grupos:
