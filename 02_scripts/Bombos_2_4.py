@@ -59,3 +59,29 @@ df_bombo2_asignado = pd.DataFrame({
 })
 
 print(df_bombo2_asignado)
+
+
+#definimos funcion para asignar bombo 3 y 4 con slots
+def asignar_bombo_con_slots(bombo, bombos_slots, random_state=None):
+    if random_state is not None:
+        random.seed(random_state)
+    
+    asignaciones = {}
+    paises_bombo = bombo['codigo'].tolist()
+
+    for grupo in grupos:
+        if not paises_bombo:
+            break
+        
+        pais_sacado = random.choice(paises_bombo)
+        slot_sacado = bombos_slots[grupo].pop(0)
+        
+        asignaciones[pais_sacado] = slot_sacado
+        paises_bombo.remove(pais_sacado)
+
+    df_asignado = pd.DataFrame({
+        'codigo': list(asignaciones.keys()),
+        'grupo_id': list(asignaciones.values())
+    })
+    
+    return df_asignado
