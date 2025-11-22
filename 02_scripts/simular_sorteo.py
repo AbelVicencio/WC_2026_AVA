@@ -38,53 +38,34 @@ def checker_validez_grupo(grupo, eq_sorteado, grupos_dict, verbose=True):
 
 
 def lookahead(grupo_target, equipo_actual, equipos_restantes, grupos_dict, bombos_slots, numero_de_bombo):
-    """
-    Evalúa si asignar `equipo_actual` al `grupo_target` dejaría al menos un grupo válido
-    para cada uno de los equipos restantes del bombo.
-
-    Si algún equipo futuro queda sin grupo disponible, regresa False.
-    Si todos conservan al menos una opción, regresa True.
-    """
-
-    # 1. Crear copia independiente del estado actual de los grupos
-    #    (para simular sin alterar el sorteo real)
+    # 1. Copia de los grupos
     grupos_sim = {g: lst.copy() for g, lst in grupos_dict.items()}
-
-    # Obtener confederación del equipo actual para validar constraints
     conf_actual = df_bombos.loc[df_bombos['codigo'] == equipo_actual, 'confederacion'].iloc[0]
+    grupos_sim[grupo_target].append({"codigo": equipo_actual, "slot": None, "conf": conf_actual})
 
-    # 2. Simular colocar el equipo actual en el grupo_target
-    grupos_sim[grupo_target].append({
-        "codigo": equipo_actual,
-        "slot": None,   # Slot no importa para lookahead
-        "conf": conf_actual
-    })
+    # 2. Función recursiva para asignar equipos restantes
+    def asignar_restantes(restantes, grupos):
+        if not restantes:
+            return True  # todos asignados
 
-    # 3. Para cada equipo restante del bombo:
-    #    verificar si tiene al menos un grupo posible
-    for eq in equipos_restantes:
-
+        eq = restantes[0]
         conf_eq = df_bombos.loc[df_bombos['codigo'] == eq, 'confederacion'].iloc[0]
-        grupo_viable = False
 
-        # Revisar grupo por grupo en orden alfabético
-        for g in bombos_slots.keys():
-
-            # 3a. Validar límite máximo de equipos permitido para este bombo
-            if len(grupos_sim[g]) >= numero_de_bombo:
+        for g in grupos.keys():
+            if len(grupos[g]) >= numero_de_bombo:
+                continue
+            if not checker_validez_grupo(g, eq, grupos, verbose=False):
                 continue
 
-            # 3b. Validar constraint de confederación simulando eq en g
-            if checker_validez_grupo(g, eq, grupos_sim, verbose=False):
-                grupo_viable = True
-                break
+            # Asignación temporal
+            grupos[g].append({"codigo": eq, "slot": None, "conf": conf_eq})
+            if asignar_restantes(restantes[1:], grupos):
+                return True  # éxito
+            grupos[g].pop()  # deshacer asignación si no funciona
 
-        # Si este equipo NO tiene ningún grupo disponible → falla el lookahead
-        if not grupo_viable:
-            return False
+        return False  # ningún grupo válido para este equipo
 
-    # Si todos los equipos tienen al menos una opción → la asignación es segura
-    return True
+    return asignar_restantes(equipos_restantes, grupos_sim)
 
 
 #Generamos esqueleto
