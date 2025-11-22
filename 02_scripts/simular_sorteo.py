@@ -5,7 +5,7 @@ import string
 from pprint import pprint
 
 
-from WC_2026 import asignar_bombos, generar_repechaje_uefa, generar_repechaje_fifa
+from simular_bombos import asignar_bombos, generar_repechaje_uefa, generar_repechaje_fifa
 
 #Importamos lista de selecciones clasificadas y dejamos slots para las de repechaje
 
@@ -23,12 +23,7 @@ df_repechaje_fifa = pd.read_excel('01_datos_brutos/Clasificados_WC_26.xlsx',
 df_power_ranking = pd.read_csv('01_datos_brutos/FIFA_PR_19_11_2025.csv').drop(columns=['Unnamed: 7'])
 
 #Cargamos bombos
-df_bombos, bombo1, bombo2, bombo3, bombo4 = asignar_bombos(df_clasificados, df_power_ranking, random_state=42)
-
-
-
-
-
+df_bombos, bombo1, bombo2, bombo3, bombo4 = asignar_bombos(df_clasificados, random_state=42)
 
 
 

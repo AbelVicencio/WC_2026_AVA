@@ -23,6 +23,12 @@ def generar_repechaje_uefa(df, random_state=None):
     df_shuffle = df.sample(frac=1, random_state=random_state).reset_index(drop=True)
     df_shuffle['llave'] = np.repeat([1,2,3,4], 4)
     ganadores = df_shuffle.groupby('llave', group_keys=False).sample(1, random_state=random_state)
+
+    ganadores = pd.merge(ganadores, 
+                         df_power_ranking[['codigo', 'puntos_totales']], 
+                         on='codigo', 
+                         how='left')
+    
     return ganadores  # devuelve todas las columnas
 
 
@@ -32,6 +38,11 @@ def generar_repechaje_fifa(df, random_state = None):
     df_shuffle['llave'] = np.repeat([1,2], 3)
 
     ganadores = df_shuffle.groupby('llave').sample(1, random_state = random_state)
+
+    ganadores = pd.merge(ganadores, 
+                         df_power_ranking[['codigo', 'puntos_totales']], 
+                         on='codigo', 
+                         how='left')
 
     return ganadores
 
@@ -76,45 +87,39 @@ def asignar_bombos(df_clasificados,
     # Ganadores de repechaje UEFA
     if clasificados_uefa is None:
         ganadores_uefa = generar_repechaje_uefa(df_repechaje_uefa, random_state=random_state)
+        ganadores_uefa['repechaje'] = 1
+        ganadores_uefa['anfitrion'] = 0
     else:
         ganadores_uefa = df_repechaje_uefa[df_repechaje_uefa['codigo'].isin(clasificados_uefa)].copy()
-    ganadores_uefa['repechaje'] = 1
-    # Crear columna anfitrion si no existe
-    if 'anfitrion' not in ganadores_uefa.columns:
+        ganadores_uefa['repechaje'] = 1
         ganadores_uefa['anfitrion'] = 0
 
     # Ganadores de repechaje FIFA
     if clasificados_fifa is None:
         ganadores_fifa = generar_repechaje_fifa(df_repechaje_fifa, random_state=random_state)
+        ganadores_fifa['repechaje'] = 1
+        ganadores_fifa['anfitrion'] = 0
     else:
         ganadores_fifa = df_repechaje_fifa[df_repechaje_fifa['codigo'].isin(clasificados_fifa)].copy()
-    ganadores_fifa['repechaje'] = 1
-    # Crear columna anfitrion si no existe
-    if 'anfitrion' not in ganadores_fifa.columns:
+        ganadores_fifa['repechaje'] = 1
         ganadores_fifa['anfitrion'] = 0
 
     # Concatenamos repechajes al bombo 4
-    bombo4 = pd.concat([bombo4, ganadores_uefa, ganadores_fifa], ignore_index=True)
-    bombo4['bombo'] = 4
+    bombo4_concat = pd.concat([bombo4, ganadores_uefa, ganadores_fifa], ignore_index=True)
+    bombo4_concat['bombo'] = 4
 
     # Limpiamos columnas y aseguramos tipos
-    columnas_base = ['codigo', 'confederacion', 'anfitrion', 'bombo']
+    columnas_base = ['pais', 'codigo', 'confederacion', 'anfitrion','puntos_totales', 'bombo']
     columnas_bombo4 = columnas_base + ['repechaje']
-    bombo4 = bombo4[columnas_bombo4]
+    bombo4_concat = bombo4_concat[columnas_bombo4]
 
-    bombo4['repechaje'] = bombo4['repechaje'].fillna(0).astype(int)
-    bombo4['anfitrion'] = bombo4['anfitrion'].fillna(0).astype(int)
+    bombo4_concat['repechaje'] = bombo4_concat['repechaje'].fillna(0).astype(int)
+    bombo4_concat['anfitrion'] = bombo4_concat['anfitrion'].fillna(0).astype(int)
 
     # Concatenamos todos los bombos
-    df_final = pd.concat([bombo1, bombo2, bombo3, bombo4]).reset_index(drop=True)
+    df_final = pd.concat([bombo1, bombo2, bombo3, bombo4_concat]).reset_index(drop=True)
+    df_final['repechaje'] = df_final['repechaje'].fillna(0).astype(int)
 
-    return df_final, bombo1, bombo2, bombo3, bombo4
-
-
-df_bombos, bombo1, bombo2, bombo3, bombo4 = asignar_bombos(df_clasificados, df_power_ranking, random_state=42)
+    return df_final, bombo1, bombo2, bombo3, bombo4_concat
 
 
-print(generar_repechaje_uefa(df_repechaje_uefa, random_state=41))
-print(generar_repechaje_fifa(df_repechaje_fifa, random_state=41))
-
-print(bombo4)
