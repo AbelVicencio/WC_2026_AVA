@@ -128,7 +128,7 @@ def sortear_bombo_1(df_bombos):
             # Quitamos slot del bombo de grupos
             bombos_slots[grupo].remove(slot)
 
-            print(f"{eq_sorteado} ({conf}) cabeza de Grupo {grupo} → slot {slot}")
+            print(f"{eq_sorteado} ({conf}) cabeza de Grupo {grupo} -> slot {slot}")
 
     grupos_dict = {g: [] for g in grupos}
 
