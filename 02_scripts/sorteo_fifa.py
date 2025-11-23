@@ -1,3 +1,17 @@
+"""
+Sorteo FIFA World Cup 2026 - Simulación Interactiva con NiceGUI
+
+Este script implementa una aplicación web interactiva para simular el sorteo de la Copa Mundial de la FIFA 2026.
+Utiliza la librería NiceGUI para el frontend y se integra con scripts de lógica de sorteo (`simular_bombos` y `simular_sorteo_func`)
+para garantizar que se cumplan todas las restricciones geográficas y de bombos.
+
+Características principales:
+- Interfaz reactiva y visualmente atractiva.
+- Simulación asíncrona para permitir animaciones sin bloquear el servidor.
+- Visualización de banderas de países mediante FlagCDN.
+- Registro en tiempo real de los eventos del sorteo.
+"""
+
 import asyncio
 import random
 import string
@@ -6,13 +20,16 @@ from nicegui import ui, app
 from simular_bombos import df_bombos
 from simular_sorteo_func import checker_validez_grupo, lookahead
 
-# --- Configuration & Styles ---
+# --- Configuración y Estilos ---
+# Definimos estilos CSS en línea para mantener el código autocontenido y facilitar la personalización.
 HEADER_STYLE = "font-size: 2em; font-weight: bold; color: #1976D2; text-align: center; margin-bottom: 20px;"
 CARD_STYLE = "min-width: 220px; min-height: 260px; background-color: #f5f5f5; border-radius: 10px; padding: 10px; transition: all 0.3s ease;"
 SLOT_STYLE = "padding: 4px; margin: 2px; border-bottom: 1px solid #ddd; font-size: 0.9em; width: 100%;"
 HIGHLIGHT_STYLE = "background-color: #fff59d; transform: scale(1.05);"
 
-# --- Data & Mappings ---
+# --- Datos y Mapeos ---
+# Diccionario para mapear códigos FIFA (3 letras) a códigos ISO (2 letras) para obtener las banderas.
+# Esto es necesario porque FlagCDN utiliza códigos ISO.
 FIFA_TO_ISO = {
     'AFG': 'af', 'ALB': 'al', 'ALG': 'dz', 'ASA': 'as', 'AND': 'ad', 'ANG': 'ao', 'AIA': 'ai', 'ATG': 'ag',
     'ARG': 'ar', 'ARM': 'am', 'ARU': 'aw', 'AUS': 'au', 'AUT': 'at', 'AZE': 'az', 'BAH': 'bs', 'BHR': 'bh',
@@ -42,80 +59,107 @@ FIFA_TO_ISO = {
     'UZB': 'uz', 'VAN': 'vu', 'VEN': 've', 'VIE': 'vn', 'WAL': 'gb-wls', 'YEM': 'ye', 'ZAM': 'zm', 'ZIM': 'zw'
 }
 
-# --- State Management Class ---
+# --- Clase de Gestión de Estado ---
 class SorteoManager:
+    """
+    Gestiona el estado completo de una sesión de sorteo.
+    
+    Mantiene la información sobre los grupos, los equipos asignados, los slots disponibles
+    y el registro de eventos. Al encapsular el estado aquí, facilitamos el reinicio
+    del sorteo sin necesidad de recargar la página completa.
+    """
     def __init__(self):
         self.reset()
 
     def reset(self):
-        self.grupos = list(string.ascii_uppercase[:12])
-        self.grupos_dict = {g: [] for g in self.grupos}
+        """Reinicia el estado a los valores iniciales para un nuevo sorteo."""
+        self.grupos = list(string.ascii_uppercase[:12])  # Grupos A-L
+        self.grupos_dict = {g: [] for g in self.grupos}  # Equipos en cada grupo
+        # Slots disponibles (ej: A1, A2, A3, A4)
         self.bombos_slots = {g: [f"{g}{i}" for i in range(1, 5)] for g in self.grupos}
         self.asignaciones = {}
         self.current_bombo = 1
-        self.processing = False
+        self.processing = False  # Flag para evitar múltiples ejecuciones simultáneas
         self.logs = []
         self.finished = False
 
     def log(self, message):
+        """Agrega un mensaje al registro de eventos."""
         self.logs.append(message)
-        if len(self.logs) > 50:
+        if len(self.logs) > 50:  # Mantenemos solo los últimos 50 mensajes
             self.logs.pop(0)
 
-# --- Main Page ---
+# --- Página Principal ---
 @ui.page('/')
 def index():
+    """
+    Define la estructura y lógica de la página principal de la aplicación.
+    
+    En NiceGUI, las funciones decoradas con @ui.page se ejecutan para cada nuevo cliente
+    que se conecta. Esto significa que cada usuario tiene su propia instancia de `SorteoManager`
+    y su propio estado visual.
+    """
     ui.colors(primary='#1976D2', secondary='#26A69A', accent='#9C27B0', positive='#21BA45')
     ui.add_head_html('<style>body { background-color: #e3f2fd; }</style>')
 
-    # Local state for this session
+    # Estado local para esta sesión
     state = SorteoManager()
-    group_cards = {} # Map group_name -> ui.card
+    group_cards = {} # Mapa para acceder rápidamente a las tarjetas UI de cada grupo
     
-    # UI References
+    # Referencias a componentes UI que necesitan ser actualizados dinámicamente
     log_container = None
     draw_button = None
 
-    # --- UI Helper Functions ---
+    # --- Funciones Auxiliares de UI ---
     def refresh_groups_ui():
+        """
+        Actualiza la visualización de todos los grupos.
+        
+        Recorre el estado actual (`state.grupos_dict`) y reconstruye el contenido
+        de las tarjetas de grupo. Se llama después de cada asignación para reflejar los cambios.
+        """
         for g in state.grupos:
             card = group_cards.get(g)
             if card:
                 card.clear()
                 with card:
+                    # Título del Grupo
                     ui.label(f"Grupo {g}").style("font-weight: bold; font-size: 1.2em; color: #333; margin-bottom: 5px;")
                     teams = state.grupos_dict[g]
                     
-                    # Create a map of slot -> team
+                    # Mapeamos los equipos a sus slots (1, 2, 3, 4) para mostrarlos en orden
                     slot_map = {}
                     for t in teams:
                         slot_num = int(t['slot'][-1])
                         slot_map[slot_num] = t
                     
+                    # Renderizamos los 4 slots del grupo
                     for i in range(1, 5):
                         team_data = slot_map.get(i)
                         
                         with ui.row().classes('items-center no-wrap').style(SLOT_STYLE):
-                            # Slot Label
+                            # Etiqueta del Slot (ej: A1)
                             ui.label(f"{g}{i}").style("font-weight: bold; margin-right: 6px; min-width: 25px; color: #555;")
                             
                             if team_data:
                                 code = team_data['codigo']
                                 iso = FIFA_TO_ISO.get(code, '').lower()
                                 
-                                # Flag
+                                # Bandera
                                 if iso:
                                     ui.image(f"https://flagcdn.com/h24/{iso}.png").style("width: 24px; height: auto; margin-right: 8px; border-radius: 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.2);")
                                 else:
                                     ui.icon('flag', size='xs').style("margin-right: 8px; color: #ccc;")
                                 
-                                # Name & Conf
+                                # Nombre y Confederación
                                 ui.label(f"{code}").style("font-weight: bold; color: #000; margin-right: 4px;")
                                 ui.label(f"({team_data['conf']})").style("font-size: 0.8em; color: #666;")
                             else:
+                                # Slot vacío
                                 ui.label("---").style("color: #aaa;")
 
     def update_log_ui():
+        """Actualiza el panel de registros con los últimos mensajes del sistema."""
         if log_container:
             log_container.clear()
             with log_container:
@@ -123,28 +167,44 @@ def index():
                     ui.label(msg).style("font-size: 0.8em; font-family: monospace;")
 
     async def highlight_group(group_name):
+        """
+        Aplica un efecto visual temporal a un grupo para indicar actividad.
+        
+        Args:
+            group_name (str): La letra del grupo a resaltar (ej: 'A').
+        """
         if group_name in group_cards:
             card = group_cards[group_name]
             card.style(HIGHLIGHT_STYLE)
-            await asyncio.sleep(0.5)
-            card.style(CARD_STYLE)
+            await asyncio.sleep(0.5) # Mantiene el resaltado por 0.5 segundos
+            card.style(CARD_STYLE)   # Restaura el estilo original
 
-    # --- Logic Functions (Closure over state) ---
+    # --- Funciones de Lógica del Sorteo (Clausuras sobre `state`) ---
+    
     async def run_bombo_1():
+        """
+        Ejecuta la lógica de sorteo para el Bombo 1 (Cabezas de Serie).
+        
+        El Bombo 1 tiene reglas especiales:
+        1. Los anfitriones (MEX, CAN, USA) se asignan a grupos predefinidos.
+        2. El resto de cabezas de serie se asignan aleatoriamente a los grupos restantes.
+        """
         state.log("--- INICIANDO BOMBO 1 ---")
         update_log_ui()
         
-        # 1. Asignar Anfitriones
+        # 1. Asignar Anfitriones (Regla fija)
         anfitriones = {"MEX": "A1", "CAN": "B1", "USA": "D1"}
         
         for eq, slot in anfitriones.items():
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(0.5) # Pausa para animación
             conf = df_bombos.loc[df_bombos['codigo'] == eq, 'confederacion'].iloc[0]
             grupo = slot[0]
             
+            # Actualizar estado
             state.asignaciones[eq] = {"grupo": grupo, "slot": slot, "conf": conf}
             state.grupos_dict[grupo].append({"codigo": eq, "slot": slot, "conf": conf})
             
+            # Eliminar slot usado
             if slot in state.bombos_slots[grupo]:
                 state.bombos_slots[grupo].remove(slot)
                 
@@ -159,16 +219,20 @@ def index():
             (df_bombos['bombo'] == 1)
         ]
         
+        # Grupos disponibles (excluyendo los de anfitriones)
         grupos_disponibles = [g for g in state.bombos_slots.keys() if g not in ('A', 'B', 'D')]
         
         for grupo in grupos_disponibles:
             await asyncio.sleep(0.5)
+            # Selección aleatoria
             eq_sorteado = eq_restantes_bombo_1['codigo'].sample(1).iloc[0]
             fila_eq = eq_restantes_bombo_1[eq_restantes_bombo_1['codigo'] == eq_sorteado].iloc[0]
             conf = fila_eq['confederacion']
             
+            # Retirar del pool
             eq_restantes_bombo_1 = eq_restantes_bombo_1[eq_restantes_bombo_1['codigo'] != eq_sorteado]
             
+            # Asignar al slot 1 del grupo actual
             slot = grupo + "1"
             state.asignaciones[eq_sorteado] = {"grupo": grupo, "slot": slot, "conf": conf}
             state.grupos_dict[grupo].append({"codigo": eq_sorteado, "slot": slot, "conf": conf})
@@ -182,17 +246,31 @@ def index():
             await highlight_group(grupo)
 
     async def run_bombo_n(n):
+        """
+        Ejecuta la lógica de sorteo para los Bombos 2, 3 y 4.
+        
+        Args:
+            n (int): Número de bombo a sortear.
+            
+        Lógica:
+        1. Itera sobre los grupos en orden (A-L).
+        2. Para cada grupo, extrae una bola (equipo) del bombo actual.
+        3. Verifica restricciones geográficas y realiza 'lookahead' para evitar bloqueos.
+        4. Asigna el equipo a un grupo válido y a un slot aleatorio dentro de ese grupo.
+        """
         state.log(f"--- INICIANDO BOMBO {n} ---")
         update_log_ui()
         
         eq_bombo = df_bombos[df_bombos['bombo'] == n].copy()
         grupos_orden = list(state.bombos_slots.keys())
         
+        # Intentamos llenar un cupo en cada grupo
         for _ in grupos_orden:
             if eq_bombo.empty: break
                 
-            await asyncio.sleep(0.8)
+            await asyncio.sleep(0.8) # Pausa un poco más larga para suspense
             
+            # Sacar equipo del bombo
             eq_sorteado = eq_bombo['codigo'].sample(1).iloc[0]
             eq_bombo = eq_bombo[eq_bombo['codigo'] != eq_sorteado]
             
@@ -201,10 +279,15 @@ def index():
             
             grupo_asignado = None
             
+            # Buscar grupo válido
             for g in grupos_orden:
+                # 1. Verificar si el grupo ya está lleno para este nivel de bombo
                 if len(state.grupos_dict[g]) >= n: continue
+                
+                # 2. Verificar restricciones de confederación (ej: no más de 1 de CONMEBOL)
                 if not checker_validez_grupo(g, eq_sorteado, state.grupos_dict, verbose=False): continue
                 
+                # 3. Lookahead: Verificar si esta asignación bloquearía el sorteo futuro
                 remaining_teams = list(eq_bombo['codigo'])
                 if not lookahead(g, eq_sorteado, remaining_teams, state.grupos_dict, state.bombos_slots, n):
                     continue
@@ -217,11 +300,13 @@ def index():
                 ui.notify(f"Error: No valid group for {eq_sorteado}", type='negative')
                 return
                 
+            # Asignar slot aleatorio dentro del grupo (ej: si quedan A2, A3, A4, elige uno al azar)
             slot_sorteado = random.choice(state.bombos_slots[grupo_asignado])
             state.bombos_slots[grupo_asignado].remove(slot_sorteado)
             
             conf_sorteado = df_bombos.loc[df_bombos['codigo'] == eq_sorteado, 'confederacion'].iloc[0]
             
+            # Guardar asignación
             state.grupos_dict[grupo_asignado].append({
                 "codigo": eq_sorteado,
                 "slot": slot_sorteado,
@@ -240,6 +325,12 @@ def index():
             await highlight_group(grupo_asignado)
 
     async def start_simulation():
+        """
+        Orquesta el proceso completo de simulación.
+        
+        Se ejecuta al presionar el botón 'Iniciar Sorteo'.
+        Ejecuta secuencialmente el sorteo de los bombos 1, 2, 3 y 4.
+        """
         if state.processing: return
         state.processing = True
         if draw_button: draw_button.disable()
@@ -263,7 +354,7 @@ def index():
             if draw_button: draw_button.enable()
             update_log_ui()
 
-    # --- Layout Construction ---
+    # --- Construcción del Layout ---
     with ui.column().classes('w-full items-center'):
         ui.label('Sorteo FIFA World Cup 2026').style(HEADER_STYLE)
         
@@ -271,14 +362,14 @@ def index():
             draw_button = ui.button('Iniciar Sorteo', on_click=start_simulation).props('push color=primary icon=play_arrow')
             ui.button('Reiniciar', on_click=lambda: ui.navigate.reload()).props('outline color=secondary icon=refresh')
 
-        # Groups Grid
+        # Grid de Grupos
         with ui.grid(columns=4).classes('w-full q-pa-md gap-4').style("max-width: 1400px;"):
             for g in state.grupos:
                 with ui.card().style(CARD_STYLE) as card:
                     group_cards[g] = card
                     ui.label(f"Grupo {g}").style("font-weight: bold;")
         
-        # Log Area
+        # Área de Registros
         with ui.expansion('Registro del Sorteo', icon='list', value=True).classes('w-full q-pa-md').style("max-width: 1400px; background-color: white; border-radius: 8px;"):
             log_container = ui.column().classes('w-full').style("max-height: 200px; overflow-y: auto;")
 
