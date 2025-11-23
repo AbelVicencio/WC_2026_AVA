@@ -11,6 +11,7 @@ El núcleo de la simulación reside en tres scripts principales dentro de `02_sc
 1.  **`sorteo_fifa.py`**: La aplicación frontend (NiceGUI). Orquesta el flujo, maneja el estado y visualiza los resultados.
 2.  **`simular_bombos.py`**: Lógica de preparación de datos. Genera los bombos basándose en el ranking FIFA y simula los repechajes.
 3.  **`simular_sorteo_func.py`**: El "cerebro" lógico. Contiene las funciones de validación de restricciones y el algoritmo de lookahead para evitar bloqueos en el sorteo.
+4.  **`simulacion_sorteo_fifa.py`**: Versión de línea de comandos (CLI). Ejecuta la misma lógica de sorteo que la versión web pero muestra los resultados finales directamente en la terminal en formato de texto, ideal para pruebas rápidas o ejecución sin interfaz gráfica.
 
 ---
 
@@ -61,7 +62,11 @@ Esta es la función más avanzada (`lookahead`). Antes de confirmar la asignaci�
 Para iniciar la simulación:
 
 ```bash
+# Para la versión gráfica (Web)
 python 02_scripts/sorteo_fifa.py
+
+# Para la versión de consola (CLI)
+python 02_scripts/simulacion_sorteo_fifa.py
 ```
 
 La aplicación estará disponible en `http://localhost:5555`.
